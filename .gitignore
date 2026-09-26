@@ -41,3 +41,7 @@ build-*/
 
 # Cygwin/MSYS crash dumps, written into whatever directory the shell was in
 *.stackdump
+
+# Plain ISO converted from a .ciso by build.bat / play.bat (tools/ciso_to_iso.py)
+/melee.iso
+/melee.iso.tmp

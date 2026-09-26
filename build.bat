@@ -19,6 +19,13 @@ if not exist %VSWHERE% (
   winget install --id Microsoft.VisualStudio.2022.BuildTools -e --accept-source-agreements --accept-package-agreements --override "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended" || goto :tools
 )
 
+rem A compressed disc (.ciso, what Dolphin and many backups use) becomes a plain melee.iso here, once.
+for %%I in ("%ISO%") do if /i "%%~xI"==".ciso" (
+  echo Converting the .ciso to a plain ISO ^(once, about 1.4 GB^)...
+  python tools\ciso_to_iso.py "%ISO%" "%~dp0melee.iso" || goto :ciso_fail
+  set ISO=%~dp0melee.iso
+)
+
 echo.
 echo [1/4] Extracting main.dol from the ISO
 python tools\extract_dol.py "%ISO%" build\main.dol || goto :fail
@@ -42,5 +49,10 @@ exit /b 1
 
 :fail
 echo Build failed; see the messages above.
+pause
+exit /b 1
+
+:ciso_fail
+echo Could not convert the .ciso. In Dolphin: right-click the game, Convert File, format ISO, then drop that .iso here.
 pause
 exit /b 1
