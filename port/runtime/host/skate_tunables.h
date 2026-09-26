@@ -35,8 +35,9 @@ struct Tunables {
 
   // ---- sounds. Guest SFX ids passed to ft_PlaySFX; 0 turns one off. Placeholders from ids the
   // decomp shows the game already using. Swap them in skate_tunables.json and hot-reload with F5.
-  int sfx_pop = 0x6E, sfx_catch = 0xE0, sfx_roll = 0, sfx_scrape = 115;
+  int sfx_pop = 0x6E, sfx_catch = 0xE0, sfx_roll = 0x6E, sfx_scrape = 115;
   int sfx_volume = 110;                // 0..127
+  int roll_volume = 45;                // the roll tick is quieter than the rest
   int roll_interval_frames = 14;       // the "loop" is a tick this often while rolling
   float roll_min_speed = 0.35f;        // below this the board is standing still: no roll sound
 };

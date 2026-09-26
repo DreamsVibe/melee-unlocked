@@ -34,6 +34,7 @@ void for_each_field(Tunables& t, F&& f) {
   f("sfx_roll", t.sfx_roll);
   f("sfx_scrape", t.sfx_scrape);
   f("sfx_volume", t.sfx_volume);
+  f("roll_volume", t.roll_volume);
   f("roll_interval_frames", t.roll_interval_frames);
   f("roll_min_speed", t.roll_min_speed);
 }
@@ -70,6 +71,7 @@ void sanitise(Tunables& t) {
   clampf(t.default_active_start, 0.0f, 0.95f);
   clampf(t.default_active_end, t.default_active_start + 0.01f, 1.0f);
   clampi(t.sfx_volume, 0, 127);
+  clampi(t.roll_volume, 0, 127);
   clampi(t.roll_interval_frames, 1, 600);
   clampf(t.roll_min_speed, 0.0f, 10.0f);
 }

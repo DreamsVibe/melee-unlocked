@@ -44,6 +44,7 @@ constexpr uint32_t kFighterSize = 0x2400;
 constexpr uint32_t kFtAnimFrame = 0x894;           // float cur_anim_frame
 constexpr uint32_t kFtHitboxes = 0x914, kHitboxStride = 0x138, kHitboxCount = 4;   // HitCapsule x914[4], +0 state
 constexpr uint32_t kFnAnimEndFrame = 0x8006F484;  // float ftAnim_8006F484(gobj): current animation's end frame
+constexpr uint32_t kFnPlaySfx = 0x80088148;       // void ft_PlaySFX(Fighter*, int id, u8 volume, u8 pan)
 constexpr uint32_t kFtFloorNormal = 0x844;         // coll_data.floor.normal (x, y)
 constexpr uint32_t kFtParts = 0x5E8;               // FighterBone* parts, 0x10 each, +0 HSD_JObj*
 constexpr uint32_t kFtPartsTable = 0x804D6544;     // FighterPartsTable** ftPartsTable, by kind
@@ -124,6 +125,7 @@ struct Player {
   } visual;
   Frame frame;                  // this frame's inputs to the momentum rule, from ProcUpdate
   bool moved = false;           // GroundMove already stepped the board this frame
+  int roll_counter = 0;         // frames since the last roll tick
   float last_write = 0.0f;      // what it wrote, for a second GroundMove in the same frame
 };
 Player g_players[kSlots];
@@ -467,6 +469,13 @@ bool bone_position(uint32_t fp, int kind, int part, Vec3& out) {
   return true;
 }
 
+// Spec step 11: the board's sounds are the game's own, played through the fighter so they pan and
+// duck like everything else it makes. Ids and volumes are tunables; 0 turns a sound off.
+void play_sfx(ppc::Context& c, uint8_t* m, uint32_t fp, int id, int volume) {
+  if (id <= 0 || volume <= 0) return;
+  call_guest_f(c, m, kFnPlaySfx, fp, (uint32_t)id, (uint32_t)std::min(volume, 127), 64u);
+}
+
 bool any_hitbox(uint32_t fp) {
   for (uint32_t i = 0; i < kHitboxCount; ++i)
     if (rd32(fp + kFtHitboxes + i * kHitboxStride) != 0) return true;
@@ -501,6 +510,7 @@ void track_aerial(ppc::Context& c, uint8_t* m, Player& p, uint32_t gobj, uint32_
     a.index = aerial_index(p.motion);
     a.end_anim = (float)call_guest_f(c, m, kFnAnimEndFrame, gobj);
     a.sampler.begin(rdf(fp + kFtFacing));
+    if (p.on_board) play_sfx(c, m, fp, g_tunables.sfx_pop, g_tunables.sfx_volume);   // the pop
     if (!(a.end_anim > 0.0f && a.end_anim < 1000.0f)) a.end_anim = 30.0f;
   }
   if (anim == a.last_anim && a.frames > 0) return;   // hitlag: the move is frozen
@@ -528,17 +538,19 @@ int lcancel_window() {
 // (halved or not) and is about to become the landing animation's rate. A clean L-cancel keeps the
 // board rolling; a miss adds stumble_extra_frames and switches to the character's own friction
 // until the landing is over. Either way the fighter stays on the board, with no knockdown.
-void landing_check(ppc::Context& c, Player& p, uint32_t fp) {
+void landing_check(ppc::Context& c, uint8_t* m, Player& p, uint32_t fp) {
   const int msid = (int)c.r[4];
   if (msid < ms::LandingAirN || msid > ms::LandingAirLw) return;   // some other caller
   const bool clean = rd8(fp + kFtX67F) < lcancel_window();          // the game's own test
   if (clean) {
     p.last_landing = Landed::Clean;
     p.stumbling = false;
+    play_sfx(c, m, fp, g_tunables.sfx_catch, g_tunables.sfx_volume);    // the clack of a clean catch
   } else {
     p.last_landing = Landed::Stumble;
     p.stumbling = true;
     c.f[1].ps0 += (double)g_tunables.stumble_extra_frames;
+    play_sfx(c, m, fp, g_tunables.sfx_scrape, g_tunables.sfx_volume);   // the scrape
   }
 }
 }  // namespace
@@ -669,6 +681,15 @@ void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
       if (p.on_board) {
         ++p.frames_on_board;
         prepare_momentum(p, fp);
+        // The roll: a tick every roll_interval_frames while the board is rolling along the ground.
+        const Tunables& t = g_tunables;
+        const bool rolling = p.grounded && !p.stumbling &&
+                             (p.mode == Mode::Roll || p.mode == Mode::Brake || p.mode == Mode::Push);
+        if (rolling && std::fabs(p.carried) >= t.roll_min_speed) {
+          if (++p.roll_counter >= t.roll_interval_frames) { p.roll_counter = 0; play_sfx(c, m, fp, t.sfx_roll, t.roll_volume); }
+        } else {
+          p.roll_counter = t.roll_interval_frames;   // the first tick comes as soon as it rolls again
+        }
       }
       break;
     }
@@ -676,7 +697,7 @@ void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
       if (p.on_board && p.grounded) ground_move(p, fp);
       break;
     case Site::LandingAir:
-      if (p.on_board) landing_check(c, p, fp);
+      if (p.on_board) landing_check(c, m, p, fp);
       break;
   }
 }

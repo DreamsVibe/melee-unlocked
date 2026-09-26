@@ -21,9 +21,10 @@
   "_sfx_comment": "Guest sound ids for ft_PlaySFX; 0 = off. Placeholders: try ids and hot-reload with F5.",
   "sfx_pop": 110,
   "sfx_catch": 224,
-  "sfx_roll": 0,
+  "sfx_roll": 110,
   "sfx_scrape": 115,
   "sfx_volume": 110,
+  "roll_volume": 45,
   "roll_interval_frames": 14,
   "roll_min_speed": 0.35
 }
