@@ -38,6 +38,8 @@ constexpr uint32_t kFtWalkMax = 0x118, kFtGroundFriction = 0x128;   // co_attrs 
 constexpr uint32_t kFtLStickX = 0x620, kFtX67F = 0x67F;
 constexpr uint32_t kFtPercent = 0x1830;
 constexpr uint32_t kFighterSize = 0x2400;
+constexpr uint32_t kPFtCommonData = 0x804D6554;   // ftCommonData* p_ftCommonData
+constexpr uint32_t kFcLcWindow = 0xE4;            // int: frames an L/R/Z press counts for (7)
 
 constexpr int kSlots = 6;
 
@@ -305,6 +307,33 @@ void ground_move(Player& p, uint32_t fp) {
 }
 }  // namespace
 
+namespace {
+int lcancel_window() {
+  const uint32_t common = rd32(kPFtCommonData);
+  if (!mapped(common, kFcLcWindow + 4)) return 7;
+  const int32_t w = (int32_t)rd32(common + kFcLcWindow);
+  return w > 0 && w <= 60 ? w : 7;
+}
+
+// Spec step 6, at ftCo_LandingAir_EnterWithMsidLag(gobj, msid, lag): the lag has been decided
+// (halved or not) and is about to become the landing animation's rate. A clean L-cancel keeps the
+// board rolling; a miss adds stumble_extra_frames and switches to the character's own friction
+// until the landing is over. Either way the fighter stays on the board, with no knockdown.
+void landing_check(ppc::Context& c, Player& p, uint32_t fp) {
+  const int msid = (int)c.r[4];
+  if (msid < ms::LandingAirN || msid > ms::LandingAirLw) return;   // some other caller
+  const bool clean = rd8(fp + kFtX67F) < lcancel_window();          // the game's own test
+  if (clean) {
+    p.last_landing = Landed::Clean;
+    p.stumbling = false;
+  } else {
+    p.last_landing = Landed::Stumble;
+    p.stumbling = true;
+    c.f[1].ps0 += (double)g_tunables.stumble_extra_frames;
+  }
+}
+}  // namespace
+
 void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
   (void)m;
   const uint32_t gobj = c.r[3];
@@ -342,6 +371,7 @@ void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
       if (p.on_board && p.grounded) ground_move(p, fp);
       break;
     case Site::LandingAir:
+      if (p.on_board) landing_check(c, p, fp);
       break;
   }
 }
