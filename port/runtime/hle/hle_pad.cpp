@@ -57,6 +57,7 @@ HLE(PADRead) {
 #ifdef SKATE_MOD
   // Skateboard mod (offline only): per-frame bookkeeping before the game runs this frame.
   skate::begin_frame();
+  skate::apply_pads(pads);
 #endif
   // The player's own Gecko codes (data writes only), re-applied each frame like the Gecko handler.
   user_gecko::apply();

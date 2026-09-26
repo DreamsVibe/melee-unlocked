@@ -4,6 +4,7 @@
 #include "skate.h"
 
 #include <atomic>
+#include <cmath>
 #include <cstring>
 #include <cstdio>
 #include <fstream>
@@ -87,6 +88,26 @@ struct Player {
   uint32_t frames_on_board = 0;
 };
 Player g_players[kSlots];
+
+// ---- per controller port (spec step 4): D-pad left edges, and the mount lag.
+constexpr uint16_t kPadDpadLeft = 0x0001;
+struct Port {
+  bool dpad_down = false;       // D-pad left held last frame (for the rising edge)
+  bool toggle = false;          // pressed this frame; the fighter on this port consumes it
+  int freeze = 0;               // frames of mount lag still to serve
+  host::PadState last{};        // the pad the game read last frame
+};
+Port g_ports[4];
+
+// Mount lag, as the spec's "actionable-after lag": for mount_frames frames the game reads the pad as
+// it was, with only buttons that were already held staying down, so nothing new can start. The
+// fighter keeps its state and velocity. (There is no new action state; see SKATE_NOTES.md.)
+void freeze_pad(host::PadState& pad, const host::PadState& last) {
+  host::PadState frozen = last;
+  frozen.button = (uint16_t)(last.button & pad.button);   // releases go through, presses do not
+  frozen.err = pad.err;
+  pad = frozen;
+}
 
 void restore_friction(Player& p) {
   if (p.friction_written && p.fp && rd32(p.fp + kFtKind) == (uint32_t)p.kind) wrf(p.fp + kFtGroundFriction, p.base_friction);
@@ -184,6 +205,52 @@ void begin_frame() {
   if (live) track_slots();
 }
 
+void apply_pads(host::PadState pads[4]) {
+  static uint32_t last_retrace = 0xFFFFFFFFu;
+  const uint32_t retrace = host::retrace_count();
+  const bool new_frame = retrace != last_retrace;   // PADRead can run twice in one retrace
+  last_retrace = retrace;
+  for (int i = 0; i < 4; ++i) {
+    Port& port = g_ports[i];
+    if (!g_hooks_live || pads[i].err != 0) { port = Port{}; port.last = pads[i]; continue; }
+    if (new_frame) {
+      const bool down = (pads[i].button & kPadDpadLeft) != 0;
+      port.toggle = down && !port.dpad_down;   // an unconsumed press from last frame is dropped
+      port.dpad_down = down;
+    }
+    if (port.freeze > 0) {
+      freeze_pad(pads[i], port.last);
+      if (new_frame) --port.freeze;
+    }
+    port.last = pads[i];
+  }
+}
+
+namespace {
+// D-pad left on the port driving `p`: on the board or off it (spec: "Mount and dismount").
+void handle_toggle(Player& p, uint32_t fp) {
+  if (p.port < 0) return;
+  Port& port = g_ports[p.port];
+  if (!port.toggle) return;
+  port.toggle = false;
+  const Tunables& t = g_tunables;
+  if (!p.on_board) {
+    if (!can_mount(p.motion, p.grounded)) return;
+    p.on_board = true;
+    p.base_friction = rdf(fp + kFtGroundFriction);
+    p.carried = rdf(fp + kFtGrVel);             // velocity is kept through the mount
+    p.entry_speed = std::fabs(p.carried);
+    p.stumbling = false;
+    p.frames_on_board = 0;
+    port.freeze = t.mount_frames;
+    if (host::options.trace_calls) host::log("skate: fighter %08X on the board at %.3f", fp, p.carried);
+  } else {
+    drop_board(p, "D-pad left");
+    port.freeze = t.mount_frames;
+  }
+}
+}  // namespace
+
 void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
   (void)m;
   const uint32_t gobj = c.r[3];
@@ -202,6 +269,14 @@ void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
       const bool dead = classify(p.motion) == Group::Dead;
       // Death, respawn: the state starts over (spec: "resets on death, respawn and match start").
       if (dead && (p.on_board || p.last_landing != Landed::None)) { drop_board(p, "died"); p.last_landing = Landed::None; }
+      handle_toggle(p, fp);
+      if (p.on_board) {
+        p.group = classify(p.motion);
+        // Hit, grabbed, ledge or death: the board goes, with no penalty beyond the hit itself. A
+        // percent that went up outside the shield catches hits that skip the usual damage states.
+        if (drops_board(p.group)) drop_board(p, group_name(p.group));
+        else if (percent > p.percent + 0.01f && p.group != Group::Shield) drop_board(p, "took damage");
+      }
       p.percent = percent;
       if (p.on_board) ++p.frames_on_board;
       break;

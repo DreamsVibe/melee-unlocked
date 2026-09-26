@@ -37,6 +37,9 @@ const Tunables& tunables();
 // Simulation thread, once per frame from HLE(PADRead) before the game runs the frame: picks up a
 // requested reload, switches the hooks on or off, and notices new, finished or respawned fighters.
 void begin_frame();
+// Same place, with the freshly polled pads: D-pad left presses, and the mount lag (the pad frozen
+// for mount_frames frames after a mount or dismount). Local pads only; the mod is never online.
+void apply_pads(host::PadState pads[4]);
 
 }  // namespace skate
 #endif  // SKATE_MOD
