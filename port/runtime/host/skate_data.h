@@ -67,6 +67,9 @@ struct TrickRow {
   float direction = 1.0f;   // +1 or -1: which way the board turns, matched to the body's spin
   float rotations = 1.0f;   // full turns (a 180 shove-it is 0.5)
   Source source = Source::Default;
+  // A hand-set row may leave its direction to the sampler ("direction": "auto" in the file), which
+  // is how the Falco fair reference gets "the same spin direction as Falco".
+  bool direction_auto = false;
 };
 
 class TrickTable {
@@ -76,6 +79,9 @@ class TrickTable {
   bool has(int kind, int aerial) const;
   // Writes a row unless the one there has a higher-ranked source (hand > auto > default).
   bool offer(int kind, int aerial, const TrickRow& row);
+  // What the bone sampler found for this move: fills a default row, and the direction of a row that
+  // asks for it. Never touches an auto or hand row otherwise. True when something changed.
+  bool learn(int kind, int aerial, const TrickRow& sampled);
   void set(int kind, int aerial, const TrickRow& row) { rows_[key(kind, aerial)] = row; }
   size_t size() const { return rows_.size(); }
   std::string to_json() const;
@@ -84,6 +90,9 @@ class TrickTable {
   // What an aerial shows before anything better is known: nair shove-it, fair kickflip, bair
   // heelflip, uair impossible, dair stomp.
   static TrickRow default_row(int aerial);
+  // The spec's reference row: Falco forward air is a one-rotation varial spinning his way.
+  static constexpr int kFalco = 22, kFair = 1;
+  void ensure_reference();
  private:
   static int key(int kind, int aerial) { return kind * kAerials + aerial; }
   std::map<int, TrickRow> rows_;

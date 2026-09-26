@@ -212,6 +212,81 @@ Pose trick_pose(const TrickRow& row, float u, const ActiveWindow& w, const Tunab
   return compose(offset(Vec3{0, lift, 0}), spin);
 }
 
+// ---------------- trick sampler
+namespace {
+// The rotation part of a joint matrix with its scale taken out (columns normalised).
+void rotation_of(const float m[3][4], float r[3][3]) {
+  for (int col = 0; col < 3; ++col) {
+    const float l = std::sqrt(m[0][col] * m[0][col] + m[1][col] * m[1][col] + m[2][col] * m[2][col]);
+    const float k = l > 1e-6f ? 1.0f / l : 0.0f;
+    for (int row = 0; row < 3; ++row) r[row][col] = m[row][col] * k;
+  }
+}
+}  // namespace
+
+void TrickSampler::begin(float facing) {
+  *this = TrickSampler{};
+  facing_ = facing < 0.0f ? -1.0f : 1.0f;
+}
+
+void TrickSampler::add(const float hip[3][4], Vec3 feet) {
+  float r[3][3];
+  rotation_of(hip, r);
+  const float feet_rel = feet.y - hip[1][3];
+  if (samples_ == 0) {
+    feet_rel0_ = feet_rel;
+  } else {
+    // d = r * prev^T: this frame's turn, as an axis and angle.
+    float d[3][3];
+    for (int i = 0; i < 3; ++i)
+      for (int j = 0; j < 3; ++j) d[i][j] = r[i][0] * prev_[j][0] + r[i][1] * prev_[j][1] + r[i][2] * prev_[j][2];
+    const float c = std::clamp((d[0][0] + d[1][1] + d[2][2] - 1.0f) * 0.5f, -1.0f, 1.0f);
+    const float angle = std::acos(c);
+    if (angle > 1e-4f) {
+      Vec3 axis{d[2][1] - d[1][2], d[0][2] - d[2][0], d[1][0] - d[0][1]};
+      axis = normalize(axis, Vec3{0, 0, 0});
+      w_ = w_ + axis * angle;
+    }
+    drop_ = std::max(drop_, feet_rel0_ - feet_rel);   // how far the feet came down toward/past the hip
+  }
+  for (int i = 0; i < 3; ++i)
+    for (int j = 0; j < 3; ++j) prev_[i][j] = r[i][j];
+  ++samples_;
+}
+
+float TrickSampler::total_angle() const { return length(w_); }
+
+TrickRow TrickSampler::classify(float board_length) const {
+  TrickRow row;
+  row.source = Source::Auto;
+  const float forward = w_.x * facing_, up = w_.y, side = w_.z;
+  const float total = total_angle();
+  if (total < 1.05f) {   // under 60 degrees: the body barely turns
+    row.trick = drop_ > board_length * 0.35f ? Trick::Stomp : Trick::Grab;
+    row.direction = forward >= 0.0f ? 1.0f : -1.0f;
+    row.rotations = 1.0f;
+    return row;
+  }
+  const float af = std::fabs(forward), au = std::fabs(up), as = std::fabs(side);
+  if (af >= au && af >= as) {
+    row.trick = Trick::Varial;
+    row.direction = forward >= 0.0f ? 1.0f : -1.0f;
+    row.rotations = std::max(1.0f, std::round(af / (2.0f * kPi)));
+  } else if (au >= as) {
+    row.trick = Trick::Shoveit;
+    row.direction = up >= 0.0f ? 1.0f : -1.0f;
+    row.rotations = std::max(0.5f, std::round(au / kPi) * 0.5f);
+  } else {
+    // In the screen's plane. Facing +x, a turn about +z lifts the nose: a back flip. A front flip
+    // turns the other way, and a front flip is a kickflip.
+    const bool front = side * facing_ < 0.0f;
+    row.trick = front ? Trick::Kickflip : Trick::Heelflip;
+    row.direction = 1.0f;
+    row.rotations = std::max(1.0f, std::round(as / (2.0f * kPi)));
+  }
+  return row;
+}
+
 Pose stumble_pose(int frame, float direction) {
   // Kicks out sideways and wobbles back as the stumble plays out.
   const float f = (float)std::max(frame, 0);

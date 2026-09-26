@@ -1,0 +1,1086 @@
+{
+  "_comment": "Board trick per character per aerial. source: hand rows are never overwritten; auto rows come from sampling the character's bones in game; default rows are placeholders. F5 reloads, F8 saves.",
+  "version": 1,
+  "rows": [
+    {
+      "character": "Mario",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Mario",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mario",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mario",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mario",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Fox",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Fox",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Fox",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Fox",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Fox",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Captain Falcon",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Captain Falcon",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Captain Falcon",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Captain Falcon",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Captain Falcon",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Donkey Kong",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Donkey Kong",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Donkey Kong",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Donkey Kong",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Donkey Kong",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Kirby",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Kirby",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Kirby",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Kirby",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Kirby",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Bowser",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Bowser",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Bowser",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Bowser",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Bowser",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Link",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Link",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Link",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Link",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Link",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Sheik",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Sheik",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Sheik",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Sheik",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Sheik",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Ness",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Ness",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Ness",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Ness",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Ness",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Peach",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Peach",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Peach",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Peach",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Peach",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Popo",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Popo",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Popo",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Popo",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Popo",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Nana",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Nana",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Nana",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Nana",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Nana",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Pikachu",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Pikachu",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Pikachu",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Pikachu",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Pikachu",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Samus",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Samus",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Samus",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Samus",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Samus",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Yoshi",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Yoshi",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Yoshi",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Yoshi",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Yoshi",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Jigglypuff",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Jigglypuff",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Jigglypuff",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Jigglypuff",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Jigglypuff",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mewtwo",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Mewtwo",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mewtwo",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mewtwo",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mewtwo",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Luigi",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Luigi",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Luigi",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Luigi",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Luigi",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Marth",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Marth",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Marth",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Marth",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Marth",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Zelda",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Zelda",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Zelda",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Zelda",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Zelda",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Young Link",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Young Link",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Young Link",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Young Link",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Young Link",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Dr. Mario",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Dr. Mario",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Dr. Mario",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Dr. Mario",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Dr. Mario",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Falco",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Falco",
+      "aerial": "fair",
+      "trick": "varial",
+      "direction": "auto",
+      "rotations": 1,
+      "source": "hand"
+    },
+    {
+      "character": "Falco",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Falco",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Falco",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Pichu",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Pichu",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Pichu",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Pichu",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Pichu",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mr. Game & Watch",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Mr. Game & Watch",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mr. Game & Watch",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mr. Game & Watch",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Mr. Game & Watch",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Ganondorf",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Ganondorf",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Ganondorf",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Ganondorf",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Ganondorf",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Roy",
+      "aerial": "nair",
+      "trick": "shoveit",
+      "direction": 1,
+      "rotations": 0.5,
+      "source": "default"
+    },
+    {
+      "character": "Roy",
+      "aerial": "fair",
+      "trick": "kickflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Roy",
+      "aerial": "bair",
+      "trick": "heelflip",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Roy",
+      "aerial": "uair",
+      "trick": "impossible",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    },
+    {
+      "character": "Roy",
+      "aerial": "dair",
+      "trick": "stomp",
+      "direction": 1,
+      "rotations": 1,
+      "source": "default"
+    }
+  ]
+}

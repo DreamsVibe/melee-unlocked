@@ -112,6 +112,7 @@ struct Player {
     float last_anim = -1.0f;
     float end_anim = 0.0f;      // the animation's end frame
     int first_active = 0, last_active = 0;
+    TrickSampler sampler;       // the hip and feet over the active frames (spec step 10)
   } aerial;
   // What the board looked like last published frame, for the landing snap and the stumble skid.
   struct Visual {
@@ -129,7 +130,8 @@ Player g_players[kSlots];
 std::mutex g_snapshot_lock;
 Snapshot g_snapshot;             // guarded by g_snapshot_lock
 uint64_t g_frame = 0;
-TrickTable g_tricks;             // spec step 10 fills it from skate_tricks.json; per-aerial defaults until then
+TrickTable g_tricks;             // skate_tricks.json, plus what the sampler learns
+bool g_tricks_dirty = false;
 FrameDataTable g_framedata;
 bool g_framedata_dirty = false;
 
@@ -226,6 +228,8 @@ bool write_file(const std::string& path, const std::string& text) {
 
 void load_framedata();
 void save_framedata();
+void load_tricks();
+void save_tricks();
 void publish();
 
 void load_tunables() {
@@ -257,6 +261,28 @@ void load_framedata() {
   host::log("skate: frame data for %zu aerials from %s", g_framedata.size(), path.c_str());
 }
 
+void load_tricks() {
+  const std::string path = g_dir + "/skate_tricks.json";
+  std::string text, error, warnings;
+  TrickTable t;
+  if (!read_file(path, text)) host::log("skate: %s not found, every aerial uses its default trick", path.c_str());
+  else if (!t.from_json(text, error, warnings)) host::log("skate: %s: %s", path.c_str(), error.c_str());
+  else {
+    if (!warnings.empty()) host::log("skate: %s: skipped %s", path.c_str(), warnings.c_str());
+    host::log("skate: %zu trick rows from %s", t.size(), path.c_str());
+  }
+  t.ensure_reference();   // Falco fair, hand-set (spec step 10)
+  g_tricks = t;
+  g_tricks_dirty = false;
+}
+
+void save_tricks() {
+  const std::string path = g_dir + "/skate_tricks.json";
+  if (write_file(path, g_tricks.to_json())) host::log("skate: wrote %zu trick rows to %s", g_tricks.size(), path.c_str());
+  else host::log("skate: could not write %s", path.c_str());
+  g_tricks_dirty = false;
+}
+
 void save_framedata() {
   const std::string path = g_dir + "/skate_framedata.json";
   if (write_file(path, g_framedata.to_json())) host::log("skate: wrote frame data for %zu aerials to %s", g_framedata.size(), path.c_str());
@@ -278,8 +304,9 @@ bool active() {
 
 void begin_frame() {
   // File access only here, between frames, and only when asked for (hot-reload, F8).
-  if (g_reload_requested.exchange(false)) load_tunables();
-  if (g_save_requested.exchange(false)) save_framedata();
+  // F5: the tunables and the trick table, live, without restarting the match.
+  if (g_reload_requested.exchange(false)) { load_tunables(); load_tricks(); }
+  if (g_save_requested.exchange(false)) { save_framedata(); save_tricks(); }
   const bool live = active();
   if (!live && g_hooks_live) {
     // Switched off (or an online session opened) mid-match: give every fighter its friction back.
@@ -406,6 +433,40 @@ double call_guest_f(ppc::Context& c, uint8_t* m, uint32_t addr, uint32_t r3, uin
   return result;
 }
 
+// A fighter bone's HSD_JObj, by body part (ftPartsTable[kind]->part_to_joint), or 0.
+uint32_t part_jobj(uint32_t fp, int kind, int part) {
+  const uint32_t tables = rd32(kFtPartsTable);
+  if (kind < 0 || kind >= kKinds || !mapped(tables, (uint32_t)(kKinds * 4))) return 0;
+  const uint32_t table = rd32(tables + (uint32_t)kind * 4);
+  if (!mapped(table, 12)) return 0;
+  const uint32_t part_to_joint = rd32(table + kPartsToJoint);
+  if (!mapped(part_to_joint, (uint32_t)part + 1)) return 0;
+  const uint32_t joint = rd8(part_to_joint + (uint32_t)part);
+  const uint32_t parts = rd32(fp + kFtParts);
+  if (!mapped(parts, (joint + 1) * 0x10)) return 0;
+  const uint32_t jobj = rd32(parts + joint * 0x10);
+  return mapped(jobj, kJObjMtx + 0x30) ? jobj : 0;
+}
+
+bool joint_matrix(uint32_t fp, int kind, int part, float out[3][4]) {
+  const uint32_t jobj = part_jobj(fp, kind, part);
+  if (!jobj) return false;
+  for (int r = 0; r < 3; ++r)
+    for (int k = 0; k < 4; ++k) {
+      out[r][k] = rdf(jobj + kJObjMtx + (uint32_t)(r * 16 + k * 4));
+      if (!std::isfinite(out[r][k])) return false;
+    }
+  return true;
+}
+
+// A bone's world position (its matrix's translation).
+bool bone_position(uint32_t fp, int kind, int part, Vec3& out) {
+  float mtx[3][4];
+  if (!joint_matrix(fp, kind, part, mtx)) return false;
+  out = {mtx[0][3], mtx[1][3], mtx[2][3]};
+  return true;
+}
+
 bool any_hitbox(uint32_t fp) {
   for (uint32_t i = 0; i < kHitboxCount; ++i)
     if (rd32(fp + kFtHitboxes + i * kHitboxStride) != 0) return true;
@@ -422,6 +483,14 @@ void track_aerial(ppc::Context& c, uint8_t* m, Player& p, uint32_t gobj, uint32_
     const bool natural = p.motion >= ms::AirFirst + 4 && p.motion <= ms::AirFirst + 9;   // Fall .. FallAerialB
     g_framedata.observe(p.kind, a.index, a.first_active, a.last_active, natural ? a.frames : 0);
     g_framedata_dirty = true;
+    // Spec step 10: what the body did over the active frames picks this move's trick (a default row
+    // is replaced, a hand row only takes its direction, and only when it asks for it).
+    if (a.sampler.samples() >= 2 && g_tricks.learn(p.kind, a.index, a.sampler.classify(g_tunables.board_length))) {
+      g_tricks_dirty = true;
+      const TrickRow row = g_tricks.get(p.kind, a.index);
+      host::log("skate: %s %s -> %s (dir %+g, %g turns, %s)", kind_name(p.kind), aerial_name(a.index),
+                trick_name(row.trick), row.direction, row.rotations, source_name(row.source));
+    }
     a.live = false;
   }
   if (!aerial) return;
@@ -431,6 +500,7 @@ void track_aerial(ppc::Context& c, uint8_t* m, Player& p, uint32_t gobj, uint32_
     a.live = true;
     a.index = aerial_index(p.motion);
     a.end_anim = (float)call_guest_f(c, m, kFnAnimEndFrame, gobj);
+    a.sampler.begin(rdf(fp + kFtFacing));
     if (!(a.end_anim > 0.0f && a.end_anim < 1000.0f)) a.end_anim = 30.0f;
   }
   if (anim == a.last_anim && a.frames > 0) return;   // hitlag: the move is frozen
@@ -439,6 +509,11 @@ void track_aerial(ppc::Context& c, uint8_t* m, Player& p, uint32_t gobj, uint32_
   if (any_hitbox(fp)) {
     if (a.first_active == 0) a.first_active = a.frames;
     a.last_active = a.frames;
+    float hip[3][4];
+    Vec3 l, r;
+    if (joint_matrix(fp, p.kind, kPartHipN, hip) && bone_position(fp, p.kind, kPartLFootJ, l) &&
+        bone_position(fp, p.kind, kPartRFootJ, r))
+      a.sampler.add(hip, (l + r) * 0.5f);
   }
 }
 
@@ -470,23 +545,6 @@ void landing_check(ppc::Context& c, Player& p, uint32_t fp) {
 
 namespace {
 // ---- spec step 8: where the board is, read after the frame is simulated.
-// A bone's world position (its matrix's translation), or false when it cannot be read.
-bool bone_position(uint32_t fp, int kind, int part, Vec3& out) {
-  const uint32_t tables = rd32(kFtPartsTable);
-  if (!mapped(tables, (uint32_t)(kKinds * 4))) return false;
-  const uint32_t table = rd32(tables + (uint32_t)kind * 4);
-  if (!mapped(table, 12)) return false;
-  const uint32_t part_to_joint = rd32(table + kPartsToJoint);
-  if (!mapped(part_to_joint, (uint32_t)part + 1)) return false;
-  const uint32_t joint = rd8(part_to_joint + (uint32_t)part);
-  const uint32_t parts = rd32(fp + kFtParts);
-  if (!mapped(parts, (joint + 1) * 0x10)) return false;
-  const uint32_t jobj = rd32(parts + joint * 0x10);
-  if (!mapped(jobj, kJObjMtx + 0x30)) return false;
-  out = {rdf(jobj + kJObjMtx + 0x0C), rdf(jobj + kJObjMtx + 0x1C), rdf(jobj + kJObjMtx + 0x2C)};
-  return std::isfinite(out.x) && std::isfinite(out.y) && std::isfinite(out.z);
-}
-
 bool read_camera(Camera& cam) {
   cam.valid = false;
   const uint32_t gobj = rd32(kGameCamera);
@@ -566,6 +624,7 @@ void publish() {
   s.active = g_hooks_live;
   s.tunables = g_tunables;
   s.framedata_rows = g_framedata.size();
+  s.trick_rows = g_tricks.size();
   if (g_hooks_live) {
     read_camera(s.camera);
     for (int i = 0; i < kSlots; ++i) board_view(g_players[i], s.boards[i]);
@@ -627,6 +686,7 @@ const std::string& data_dir() { return g_dir; }
 void load_files() {
   load_tunables();
   load_framedata();
+  load_tricks();
 }
 void request_reload() { g_reload_requested.store(true); }
 const Tunables& tunables() { return g_tunables; }

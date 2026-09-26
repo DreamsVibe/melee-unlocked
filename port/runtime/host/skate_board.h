@@ -91,6 +91,30 @@ TrickTime trick_time(float u, const ActiveWindow& w);
 // hitbox frames), catch (back under the feet by the end). Relative to the air pose.
 Pose trick_pose(const TrickRow& row, float u, const ActiveWindow& w, const Tunables& t);
 
+// ---- trick table auto-generator (spec step 10). Fed the hip bone's world rotation and the feet's
+// position on each active frame of an aerial; picks the trick whose motion matches the body's:
+// a spin about the forward axis -> varial, about the vertical -> shove-it, a flip in the screen's
+// plane -> kickflip (front flip) or heelflip (back flip), the feet driving down -> stomp, little
+// motion -> grab. Directions follow the body's.
+class TrickSampler {
+ public:
+  void begin(float facing);
+  // hip: the joint's 3x4 world matrix (scale allowed, it is removed).
+  void add(const float hip[3][4], Vec3 feet);
+  int samples() const { return samples_; }
+  float total_angle() const;          // radians, all axes
+  Vec3 rotation() const { return w_; } // accumulated rotation vector, world axes
+  float foot_drop() const { return drop_; }
+  TrickRow classify(float board_length) const;
+ private:
+  float facing_ = 1.0f;
+  float prev_[3][3] = {};
+  float hip_y0_ = 0, feet_rel0_ = 0;
+  Vec3 w_{};
+  float drop_ = 0.0f;
+  int samples_ = 0;
+};
+
 // The skid a stumble shows, `frame` frames into it, relative to the rest pose.
 Pose stumble_pose(int frame, float direction);
 

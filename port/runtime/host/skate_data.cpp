@@ -162,12 +162,44 @@ bool TrickTable::offer(int kind, int aerial, const TrickRow& row) {
   return true;
 }
 
+bool TrickTable::learn(int kind, int aerial, const TrickRow& sampled) {
+  if (kind < 0 || kind >= kKinds || aerial < 0 || aerial >= kAerials) return false;
+  auto it = rows_.find(key(kind, aerial));
+  if (it == rows_.end() || it->second.source == Source::Default) {
+    TrickRow r = sampled;
+    r.source = Source::Auto;
+    r.direction_auto = false;
+    rows_[key(kind, aerial)] = r;
+    return true;
+  }
+  if (it->second.direction_auto) {
+    it->second.direction = sampled.direction;
+    it->second.direction_auto = false;   // learned once; F8 saves it as a plain number
+    return true;
+  }
+  return false;
+}
+
+void TrickTable::ensure_reference() {
+  auto it = rows_.find(key(kFalco, kFair));
+  if (it != rows_.end() && it->second.source == Source::Hand) return;   // the file already has it
+  TrickRow r;
+  r.trick = Trick::Varial;
+  r.rotations = 1.0f;
+  r.direction = 1.0f;
+  r.direction_auto = true;
+  r.source = Source::Hand;
+  rows_[key(kFalco, kFair)] = r;
+}
+
 std::string TrickTable::to_json() const {
   json rows = json::array();
   for (const auto& [k, r] : rows_) {
     const int kind = k / kAerials, aerial = k % kAerials;
-    rows.push_back({{"character", kind_name(kind)}, {"aerial", aerial_name(aerial)}, {"trick", trick_name(r.trick)},
-                    {"direction", r.direction >= 0.0f ? 1 : -1}, {"rotations", r.rotations}, {"source", source_name(r.source)}});
+    json row = {{"character", kind_name(kind)}, {"aerial", aerial_name(aerial)}, {"trick", trick_name(r.trick)},
+                {"direction", r.direction >= 0.0f ? 1 : -1}, {"rotations", r.rotations}, {"source", source_name(r.source)}};
+    if (r.direction_auto) row["direction"] = "auto";
+    rows.push_back(row);
   }
   json doc = {{"_comment", "Board trick per character per aerial. source: hand rows are never overwritten; auto rows come "
                            "from sampling the character's bones in game; default rows are placeholders. F5 reloads, F8 saves."},
@@ -197,6 +229,7 @@ bool TrickTable::from_json(const std::string& text, std::string& error, std::str
     TrickRow row;
     if (!r.count("trick") || !r["trick"].is_string() || !trick_from_name(r["trick"].get<std::string>(), row.trick)) { warn("unknown trick"); continue; }
     if (r.count("direction") && r["direction"].is_number()) row.direction = r["direction"].get<float>() < 0.0f ? -1.0f : 1.0f;
+    if (r.count("direction") && r["direction"].is_string() && lower(r["direction"].get<std::string>()) == "auto") row.direction_auto = true;
     if (r.count("rotations") && r["rotations"].is_number()) row.rotations = std::clamp(r["rotations"].get<float>(), 0.0f, 4.0f);
     const std::string src = r.count("source") && r["source"].is_string() ? lower(r["source"].get<std::string>()) : "hand";
     row.source = src == "auto" ? Source::Auto : src == "default" ? Source::Default : Source::Hand;
