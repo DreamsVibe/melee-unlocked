@@ -148,4 +148,76 @@ void sort_faces(std::vector<Face>& faces) {
   std::stable_sort(faces.begin(), faces.end(), [](const Face& a, const Face& b) { return a.depth > b.depth; });
 }
 
+// ---------------- tricks
+namespace {
+constexpr float kPi = 3.14159265f;
+
+float smooth(float s) { s = std::clamp(s, 0.0f, 1.0f); return s * s * (3.0f - 2.0f * s); }
+float ease_out(float s) { s = std::clamp(s, 0.0f, 1.0f); return 1.0f - (1.0f - s) * (1.0f - s); }
+
+// Rotations in the board's own frame: roll about its length (x), yaw about its up (y), pitch about
+// its width (z).
+Pose rot_x(float a) { Pose p; const float c = std::cos(a), n = std::sin(a); p.y = {0, c, n}; p.z = {0, -n, c}; return p; }
+Pose rot_y(float a) { Pose p; const float c = std::cos(a), n = std::sin(a); p.x = {c, 0, -n}; p.z = {n, 0, c}; return p; }
+Pose rot_z(float a) { Pose p; const float c = std::cos(a), n = std::sin(a); p.x = {c, n, 0}; p.y = {-n, c, 0}; return p; }
+Pose offset(Vec3 o) { Pose p; p.origin = o; return p; }
+}  // namespace
+
+Pose trick_primitive(Trick trick, float s, float direction, float rotations, const Tunables& t) {
+  const float d = direction < 0.0f ? -1.0f : 1.0f;
+  const float e = smooth(s);
+  const float turn = 2.0f * kPi * rotations * e;
+  switch (trick) {
+    case Trick::Kickflip: return rot_x(d * turn);
+    case Trick::Heelflip: return rot_x(-d * turn);
+    case Trick::Shoveit: return rot_y(d * turn);
+    case Trick::Varial: return compose(rot_y(d * 0.5f * turn), rot_x(d * turn));   // a 360 flip with a 180 shove
+    case Trick::Impossible: {
+      // Wraps end over end around the back foot: a pitch about the tail, not the centre.
+      const Vec3 pivot{-t.board_length * 0.5f, 0, 0};
+      Pose r = rot_z(d * turn);
+      r.origin = pivot - r.rotate(pivot);
+      return r;
+    }
+    case Trick::Stomp: {
+      // A quick drop under the feet and a slam, nose first.
+      const float bump = std::sin(kPi * std::clamp(s, 0.0f, 1.0f));
+      return compose(offset(Vec3{0, -t.pop_height * 0.9f * bump, 0}), rot_z(-0.45f * bump));
+    }
+    case Trick::Grab:
+      // Stays at the feet and tilts toward a hand.
+      return rot_x(d * 0.55f * std::sin(kPi * std::clamp(s, 0.0f, 1.0f)));
+  }
+  return Pose{};
+}
+
+const char* phase_name(Phase p) { return p == Phase::Pop ? "pop" : p == Phase::Flip ? "flip" : "catch"; }
+
+TrickTime trick_time(float u, const ActiveWindow& w) {
+  const float a0 = std::clamp(w.start, 0.0f, 0.98f), a1 = std::clamp(w.end, a0 + 0.01f, 1.0f);
+  if (u < a0) return {Phase::Pop, a0 > 0.0f ? u / a0 : 1.0f};
+  if (u < a1) return {Phase::Flip, (u - a0) / (a1 - a0)};
+  return {Phase::Catch, a1 < 1.0f ? std::clamp((u - a1) / (1.0f - a1), 0.0f, 1.0f) : 1.0f};
+}
+
+Pose trick_pose(const TrickRow& row, float u, const ActiveWindow& w, const Tunables& t) {
+  const TrickTime tt = trick_time(u, w);
+  float lift = t.pop_height;
+  Pose spin;   // identity: at rest and once caught (every whole or half turn looks the same)
+  switch (tt.phase) {
+    case Phase::Pop: lift = t.pop_height * ease_out(tt.s); break;
+    case Phase::Flip: spin = trick_primitive(row.trick, tt.s, row.direction, row.rotations, t); break;
+    case Phase::Catch: lift = t.pop_height * (1.0f - smooth(tt.s)); break;
+  }
+  return compose(offset(Vec3{0, lift, 0}), spin);
+}
+
+Pose stumble_pose(int frame, float direction) {
+  // Kicks out sideways and wobbles back as the stumble plays out.
+  const float f = (float)std::max(frame, 0);
+  const float decay = std::exp(-f / 10.0f);
+  const float d = direction < 0.0f ? -1.0f : 1.0f;
+  return compose(rot_y(d * 0.6f * decay * std::cos(f * 0.35f)), rot_x(0.18f * decay * std::sin(f * 0.8f)));
+}
+
 }  // namespace skate

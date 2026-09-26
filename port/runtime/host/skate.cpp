@@ -3,6 +3,7 @@
 #ifdef SKATE_MOD
 #include "skate.h"
 
+#include <algorithm>
 #include <atomic>
 #include <cmath>
 #include <cstring>
@@ -112,6 +113,14 @@ struct Player {
     float end_anim = 0.0f;      // the animation's end frame
     int first_active = 0, last_active = 0;
   } aerial;
+  // What the board looked like last published frame, for the landing snap and the stumble skid.
+  struct Visual {
+    bool was_air = false;
+    Pose last;
+    Pose snap_from;
+    int snap_left = 0;
+    int stumble_frame = 0;
+  } visual;
   Frame frame;                  // this frame's inputs to the momentum rule, from ProcUpdate
   bool moved = false;           // GroundMove already stepped the board this frame
   float last_write = 0.0f;      // what it wrote, for a second GroundMove in the same frame
@@ -120,6 +129,7 @@ Player g_players[kSlots];
 std::mutex g_snapshot_lock;
 Snapshot g_snapshot;             // guarded by g_snapshot_lock
 uint64_t g_frame = 0;
+TrickTable g_tricks;             // spec step 10 fills it from skate_tricks.json; per-aerial defaults until then
 FrameDataTable g_framedata;
 bool g_framedata_dirty = false;
 
@@ -317,6 +327,7 @@ void handle_toggle(Player& p, uint32_t fp) {
     p.entry_speed = std::fabs(p.carried);
     p.stumbling = false;
     p.frames_on_board = 0;
+    p.visual = Player::Visual{};
     port.freeze = t.mount_frames;
     if (host::options.trace_calls) host::log("skate: fighter %08X on the board at %.3f", fp, p.carried);
   } else {
@@ -511,13 +522,41 @@ void board_view(Player& p, BoardView& v) {
   v.velocity = v.grounded ? rdf(fp + kFtGrVel) : rdf(fp + kFtSelfVel);
   if (!p.on_board) { v.state = "off"; return; }
   v.state = p.stumbling ? "stumble" : v.grounded ? mode_name(p.mode) : "air";
+  Player::Visual& vis = p.visual;
   if (v.grounded) {
-    v.pose = rest_pose(pos, facing, rdf(fp + kFtFloorNormal), rdf(fp + kFtFloorNormal + 4), t);
+    const Pose rest = rest_pose(pos, facing, rdf(fp + kFtFloorNormal), rdf(fp + kFtFloorNormal + 4), t);
+    // Down from the air (mid-trick or not): snap to the catch pose over catch_snap_frames.
+    if (vis.was_air) { vis.snap_from = vis.last; vis.snap_left = t.catch_snap_frames; }
+    if (p.stumbling) {
+      v.pose = compose(rest, stumble_pose(vis.stumble_frame++, facing));
+    } else {
+      vis.stumble_frame = 0;
+      v.pose = rest;
+    }
+    if (vis.snap_left > 0) {
+      v.pose = blend(vis.snap_from, v.pose, 1.0f - (float)(vis.snap_left - 1) / (float)t.catch_snap_frames);
+      --vis.snap_left;
+    }
   } else {
     Vec3 l, r, feet = pos;
     if (bone_position(fp, p.kind, kPartLFootJ, l) && bone_position(fp, p.kind, kPartRFootJ, r)) feet = (l + r) * 0.5f;
     v.pose = air_pose(feet, facing, t);
+    vis.snap_left = 0;
+    // Spec step 9: an aerial on the board plays its trick, timed to the move's own frames.
+    const Player::Aerial& a = p.aerial;
+    if (a.live && is_aerial(v.motion) && a.index == aerial_index(v.motion)) {
+      const float u = std::clamp(rdf(fp + kFtAnimFrame) / a.end_anim, 0.0f, 1.0f);
+      const TrickRow row = g_tricks.get(p.kind, a.index);
+      const ActiveWindow w = active_window(g_framedata, p.kind, a.index, t.default_active_start, t.default_active_end);
+      v.pose = compose(v.pose, trick_pose(row, u, w, t));
+      v.trick = trick_name(row.trick);
+      v.phase = phase_name(trick_time(u, w).phase);
+      v.phase_t = u;
+      v.state = "trick";
+    }
   }
+  vis.was_air = !v.grounded;
+  vis.last = v.pose;
 }
 
 // Builds the snapshot for the renderer from the state the last frame left behind.

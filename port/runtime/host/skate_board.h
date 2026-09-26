@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <vector>
 
+#include "skate_data.h"
 #include "skate_tunables.h"
 
 namespace skate {
@@ -74,5 +75,23 @@ void append_board_faces(std::vector<Face>& out, const std::vector<Box>& mesh, co
                         const Rect& r, int owner);
 // Back to front, so drawing in order paints the nearest faces last (there is no depth buffer).
 void sort_faces(std::vector<Face>& faces);
+
+// ---- tricks (spec: "Trick shape" and "Trick primitives")
+// A primitive: the board's pose relative to where it rests, `s` 0..1 through the flip, spinning
+// `rotations` full turns the way `direction` (+1/-1) says. (t, direction, rotations) -> transform.
+Pose trick_primitive(Trick trick, float s, float direction, float rotations, const Tunables& t);
+
+// Where an aerial is, as a fraction u of the move, against its active window.
+enum class Phase : uint8_t { Pop, Flip, Catch };
+const char* phase_name(Phase p);
+struct TrickTime { Phase phase; float s; };   // s: 0..1 through that phase
+TrickTime trick_time(float u, const ActiveWindow& w);
+
+// The whole trick at u: pop (lifts off the feet from frame 1), flip (the primitive across the
+// hitbox frames), catch (back under the feet by the end). Relative to the air pose.
+Pose trick_pose(const TrickRow& row, float u, const ActiveWindow& w, const Tunables& t);
+
+// The skid a stumble shows, `frame` frames into it, relative to the rest pose.
+Pose stumble_pose(int frame, float direction);
 
 }  // namespace skate
