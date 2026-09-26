@@ -30,6 +30,9 @@ const std::string& data_dir();
 // through request_reload, which the simulation thread picks up at the start of its next frame.
 void load_files();
 void request_reload();
+// F8: writes what has been recorded to skate_framedata.json (spec step 7's export) at the start of the
+// next simulation frame.
+void request_save();
 // The tunables the simulation is using. Only the simulation thread may hold the reference across a
 // reload; the overlay copies what it shows.
 const Tunables& tunables();

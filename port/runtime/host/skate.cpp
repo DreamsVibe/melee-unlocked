@@ -11,6 +11,7 @@
 #include <sstream>
 
 #include "ppc.h"
+#include "skate_data.h"
 #include "skate_hook.h"
 #include "skate_rules.h"
 #include "slippi_online.h"
@@ -38,6 +39,9 @@ constexpr uint32_t kFtWalkMax = 0x118, kFtGroundFriction = 0x128;   // co_attrs 
 constexpr uint32_t kFtLStickX = 0x620, kFtX67F = 0x67F;
 constexpr uint32_t kFtPercent = 0x1830;
 constexpr uint32_t kFighterSize = 0x2400;
+constexpr uint32_t kFtAnimFrame = 0x894;           // float cur_anim_frame
+constexpr uint32_t kFtHitboxes = 0x914, kHitboxStride = 0x138, kHitboxCount = 4;   // HitCapsule x914[4], +0 state
+constexpr uint32_t kFnAnimEndFrame = 0x8006F484;  // float ftAnim_8006F484(gobj): current animation's end frame
 constexpr uint32_t kPFtCommonData = 0x804D6554;   // ftCommonData* p_ftCommonData
 constexpr uint32_t kFcLcWindow = 0xE4;            // int: frames an L/R/Z press counts for (7)
 
@@ -88,11 +92,23 @@ struct Player {
   Landed last_landing = Landed::None;
   float percent = 0.0f;
   uint32_t frames_on_board = 0;
+  // The aerial in progress (tracked whether or not the fighter is on the board, so frame data fills
+  // in from ordinary play): spec step 7.
+  struct Aerial {
+    bool live = false;
+    int index = -1;             // 0 nair .. 4 dair
+    int frames = 0;             // frames the move has advanced (hitlag does not count)
+    float last_anim = -1.0f;
+    float end_anim = 0.0f;      // the animation's end frame
+    int first_active = 0, last_active = 0;
+  } aerial;
   Frame frame;                  // this frame's inputs to the momentum rule, from ProcUpdate
   bool moved = false;           // GroundMove already stepped the board this frame
   float last_write = 0.0f;      // what it wrote, for a second GroundMove in the same frame
 };
 Player g_players[kSlots];
+FrameDataTable g_framedata;
+bool g_framedata_dirty = false;
 
 // ---- per controller port (spec step 4): D-pad left edges, and the mount lag.
 constexpr uint16_t kPadDpadLeft = 0x0001;
@@ -173,6 +189,21 @@ bool read_file(const std::string& path, std::string& out) {
   return true;
 }
 
+bool write_file(const std::string& path, const std::string& text) {
+  const std::string tmp = path + ".tmp";
+  {
+    std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+    if (!f) return false;
+    f << text;
+    if (!f) return false;
+  }
+  std::remove(path.c_str());
+  return std::rename(tmp.c_str(), path.c_str()) == 0;
+}
+
+void load_framedata();
+void save_framedata();
+
 void load_tunables() {
   Tunables t;   // compiled defaults, then whatever the file says
   const std::string path = g_dir + "/skate_tunables.json";
@@ -191,6 +222,28 @@ void load_tunables() {
 
 }  // namespace
 
+namespace {
+void load_framedata() {
+  const std::string path = g_dir + "/skate_framedata.json";
+  std::string text, error;
+  if (!read_file(path, text)) return;   // nothing recorded yet
+  FrameDataTable t;
+  if (!t.from_json(text, error)) { host::log("skate: %s: %s", path.c_str(), error.c_str()); return; }
+  g_framedata = t;
+  host::log("skate: frame data for %zu aerials from %s", g_framedata.size(), path.c_str());
+}
+
+void save_framedata() {
+  const std::string path = g_dir + "/skate_framedata.json";
+  if (write_file(path, g_framedata.to_json())) host::log("skate: wrote frame data for %zu aerials to %s", g_framedata.size(), path.c_str());
+  else host::log("skate: could not write %s", path.c_str());
+  g_framedata_dirty = false;
+}
+std::atomic<bool> g_save_requested{false};
+}  // namespace
+
+void request_save() { g_save_requested.store(true); }
+
 void set_enabled(bool on) {
   if (g_enabled.exchange(on) != on) host::log("skate: mod %s", on ? "on" : "off");
 }
@@ -200,7 +253,9 @@ bool active() {
 }
 
 void begin_frame() {
-  if (g_reload_requested.exchange(false)) load_files();
+  // File access only here, between frames, and only when asked for (hot-reload, F8).
+  if (g_reload_requested.exchange(false)) load_tunables();
+  if (g_save_requested.exchange(false)) save_framedata();
   const bool live = active();
   if (!live && g_hooks_live) {
     // Switched off (or an online session opened) mid-match: give every fighter its friction back.
@@ -308,6 +363,59 @@ void ground_move(Player& p, uint32_t fp) {
 }  // namespace
 
 namespace {
+// Calls a guest function from inside a hook and puts every register back afterwards, so the function
+// the hook sits in starts exactly as it would have. Only ever at a hook's entry: the callee's frame
+// goes below the current stack pointer, which the hooked function has not used yet.
+double call_guest_f(ppc::Context& c, uint8_t* m, uint32_t addr, uint32_t r3, uint32_t r4 = 0, uint32_t r5 = 0, uint32_t r6 = 0) {
+  static ppc::Context saved;   // simulation thread only; big, so not on the host stack
+  saved = c;
+  c.r[3] = r3; c.r[4] = r4; c.r[5] = r5; c.r[6] = r6;
+  c.lr = 0;
+  ppc::call(c, m, addr);
+  const double result = c.f[1].ps0;
+  const uint64_t tb = c.tb;
+  c = saved;
+  c.tb = tb;
+  ppc::update_mxcsr(c);
+  return result;
+}
+
+bool any_hitbox(uint32_t fp) {
+  for (uint32_t i = 0; i < kHitboxCount; ++i)
+    if (rd32(fp + kFtHitboxes + i * kHitboxStride) != 0) return true;
+  return false;
+}
+
+// Spec step 7, run-time half: watch every aerial, note the frames a hitbox is out, and when the move
+// ends by itself (into a fall) record how long it lasted. Landing or being hit cuts a move short,
+// so those observations add hitbox frames but not the length.
+void track_aerial(ppc::Context& c, uint8_t* m, Player& p, uint32_t gobj, uint32_t fp) {
+  Player::Aerial& a = p.aerial;
+  const bool aerial = is_aerial(p.motion);
+  if (a.live && (!aerial || aerial_index(p.motion) != a.index)) {
+    const bool natural = p.motion >= ms::AirFirst + 4 && p.motion <= ms::AirFirst + 9;   // Fall .. FallAerialB
+    g_framedata.observe(p.kind, a.index, a.first_active, a.last_active, natural ? a.frames : 0);
+    g_framedata_dirty = true;
+    a.live = false;
+  }
+  if (!aerial) return;
+  const float anim = rdf(fp + kFtAnimFrame);
+  if (!a.live) {
+    a = Player::Aerial{};
+    a.live = true;
+    a.index = aerial_index(p.motion);
+    a.end_anim = (float)call_guest_f(c, m, kFnAnimEndFrame, gobj);
+    if (!(a.end_anim > 0.0f && a.end_anim < 1000.0f)) a.end_anim = 30.0f;
+  }
+  if (anim == a.last_anim && a.frames > 0) return;   // hitlag: the move is frozen
+  a.last_anim = anim;
+  ++a.frames;
+  if (any_hitbox(fp)) {
+    if (a.first_active == 0) a.first_active = a.frames;
+    a.last_active = a.frames;
+  }
+}
+
 int lcancel_window() {
   const uint32_t common = rd32(kPFtCommonData);
   if (!mapped(common, kFcLcWindow + 4)) return 7;
@@ -335,7 +443,6 @@ void landing_check(ppc::Context& c, Player& p, uint32_t fp) {
 }  // namespace
 
 void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
-  (void)m;
   const uint32_t gobj = c.r[3];
   if (!mapped(gobj, kGObjUserData + 4)) return;
   const uint32_t fp = rd32(gobj + kGObjUserData);
@@ -352,6 +459,7 @@ void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
       const bool dead = classify(p.motion) == Group::Dead;
       // Death, respawn: the state starts over (spec: "resets on death, respawn and match start").
       if (dead && (p.on_board || p.last_landing != Landed::None)) { drop_board(p, "died"); p.last_landing = Landed::None; }
+      track_aerial(c, m, p, gobj, fp);
       handle_toggle(p, fp);
       if (p.on_board) {
         p.group = classify(p.motion);
@@ -378,7 +486,10 @@ void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
 
 void set_data_dir(const std::string& dir) { g_dir = dir.empty() ? "skate" : dir; }
 const std::string& data_dir() { return g_dir; }
-void load_files() { load_tunables(); }
+void load_files() {
+  load_tunables();
+  load_framedata();
+}
 void request_reload() { g_reload_requested.store(true); }
 const Tunables& tunables() { return g_tunables; }
 
