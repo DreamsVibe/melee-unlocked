@@ -86,6 +86,9 @@ struct Player {
   Landed last_landing = Landed::None;
   float percent = 0.0f;
   uint32_t frames_on_board = 0;
+  Frame frame;                  // this frame's inputs to the momentum rule, from ProcUpdate
+  bool moved = false;           // GroundMove already stepped the board this frame
+  float last_write = 0.0f;      // what it wrote, for a second GroundMove in the same frame
 };
 Player g_players[kSlots];
 
@@ -251,6 +254,57 @@ void handle_toggle(Player& p, uint32_t fp) {
 }
 }  // namespace
 
+namespace {
+bool free_mode(Mode m) { return m == Mode::Free || m == Mode::PassThrough; }
+
+// Spec step 5, before the game's physics runs: decide how the board treats the ground this frame
+// and put the matching friction into the fighter's own attributes, so every one of the game's
+// ground states (idle, crouch, shield, attacks...) slides with no code of its own changed.
+void prepare_momentum(Player& p, uint32_t fp) {
+  const Tunables& t = g_tunables;
+  p.moved = false;
+  if (!p.grounded) return;
+  // Landing (from a jump, an aerial, a wavedash): the game has just turned the air speed into
+  // ground speed, and that is what the board carries from here.
+  if (!p.was_grounded) { p.carried = rdf(fp + kFtGrVel); p.entry_speed = std::fabs(p.carried); }
+  if (p.group != Group::LandingAir) p.stumbling = false;
+  Frame f;
+  f.group = p.group;
+  f.stumbling = p.stumbling;
+  f.stick_x = rdf(fp + kFtLStickX);
+  f.carried = p.carried;
+  f.base_friction = p.base_friction;
+  f.walk_max = rdf(fp + kFtWalkMax);
+  const Mode mode = pick_mode(f, t);
+  // Anything that happens inside an attack or a roll may move the character as the game likes, but
+  // cannot leave the board faster than it was going when that state began.
+  if (free_mode(mode) && (!free_mode(p.mode) || p.motion != p.prev_motion)) p.entry_speed = std::fabs(p.carried);
+  p.mode = mode;
+  p.frame = f;
+  wrf(fp + kFtGroundFriction, friction_for(mode, f.group, p.base_friction, t));
+  p.friction_written = true;
+}
+
+// Spec step 5, where the game turns gr_vel into movement: the board's velocity replaces whatever
+// the state computed, so stick input never accelerates and the board never adds speed.
+void ground_move(Player& p, uint32_t fp) {
+  const Tunables& t = g_tunables;
+  if (p.moved) { wrf(fp + kFtGrVel, p.last_write); return; }   // a second call in the same frame
+  const float game_vel = rdf(fp + kFtGrVel);
+  const Move mv = board_move(p.mode, p.frame, game_vel, p.entry_speed, t);
+  wrf(fp + kFtGrVel, mv.write_vel);
+  if (!free_mode(p.mode)) {
+    // procUpdate adds these to gr_vel after the physics callback: a state's own acceleration.
+    wrf(fp + kFtGroundAccel1, 0.0f);
+    wrf(fp + kFtGroundAccel2, 0.0f);
+  }
+  p.carried = mv.carried;
+  p.frame.carried = mv.carried;
+  p.last_write = mv.write_vel;
+  p.moved = true;
+}
+}  // namespace
+
 void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
   (void)m;
   const uint32_t gobj = c.r[3];
@@ -278,10 +332,15 @@ void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
         else if (percent > p.percent + 0.01f && p.group != Group::Shield) drop_board(p, "took damage");
       }
       p.percent = percent;
-      if (p.on_board) ++p.frames_on_board;
+      if (p.on_board) {
+        ++p.frames_on_board;
+        prepare_momentum(p, fp);
+      }
       break;
     }
     case Site::GroundMove:
+      if (p.on_board && p.grounded) ground_move(p, fp);
+      break;
     case Site::LandingAir:
       break;
   }
