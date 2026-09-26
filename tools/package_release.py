@@ -243,6 +243,11 @@ def main():
         (folder / "shadercache").mkdir()
         shutil.copy2(recipes, folder / "shadercache/recipes.bin")
         print(f"pipeline recipes: {recipes} ({recipes.stat().st_size} bytes)")
+    # Skateboard mod data (SKATE_NOTES.md): tunables, trick table, recorded frame data. The game reads
+    # them from skate\ in its working directory and falls back to compiled defaults without them.
+    skate_data = ROOT / "skate"
+    if skate_data.is_dir():
+        shutil.copytree(skate_data, folder / "skate", ignore=shutil.ignore_patterns("*.tmp"))
     (folder / "User/Slippi").mkdir(parents=True)
     (folder / "Replays").mkdir()
     (folder / "MeleeUnlocked.bat").write_bytes(BAT.replace("\n", "\r\n").encode("utf-8"))

@@ -109,7 +109,7 @@ class TrickSampler {
  private:
   float facing_ = 1.0f;
   float prev_[3][3] = {};
-  float hip_y0_ = 0, feet_rel0_ = 0;
+  float feet_rel0_ = 0;
   Vec3 w_{};
   float drop_ = 0.0f;
   int samples_ = 0;

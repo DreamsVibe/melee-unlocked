@@ -87,13 +87,62 @@ downward foot travel → stomp, little motion → grab). Rows marked `"source": 
 overwritten. The shipped `skate/skate_tricks.json` is seeded by `tools/skate_seed_tricks.py` with
 per-aerial defaults (`"source": "default"`) and Falco fair hand-set to a 1-rotation varial.
 
-## 4. Things I could not verify in this environment
+## 4. Using it
+
+Build as usual (`build.bat <iso>`; it re-runs the recompiler, which is what inserts the hooks) and
+play with `play.bat`. The mod is on by default on this branch (PC settings → Game → Skateboard).
+
+| Key | What it does |
+|---|---|
+| D-pad left | Mount / dismount (grounded; `mount_frames` of lag either way) |
+| F4 | Skate debug overlay: per player on_board, velocity, state, last landing, trick/phase; board debug draw |
+| F5 | Reload `skate/skate_tunables.json` and `skate/skate_tricks.json` live |
+| F6 / F7 | Frame advance: hold the game / step one frame |
+| F8 | Save learned tricks and recorded frame data (`skate_tricks.json`, `skate_framedata.json`) |
+
+Files in `skate/` (working directory; `--skate-dir` overrides): `skate_tunables.json` (every
+number), `skate_tricks.json` (seeded by `tools/skate_seed_tricks.py`), `skate_framedata.json`
+(written by F8). Filling the trick table "for every row" happens as you play: the first time each
+character's aerial is used with the mod on, its default row is replaced by what the bone sampler
+found (the log says which). Press F8 afterwards to keep it.
+
+Suggested first session: Falco on FD vs a still CPU, F4 open. Dash, D-pad left, let go of the stick
+(should keep rolling at dash speed), hold back (brakes), full hop fair (varial; the log reports the
+learned direction), land with and without L-cancel (clean / stumble in the overlay), shield, get hit.
+
+## 5. Acceptance checklist status
+
+| Item | Status |
+|---|---|
+| Builds and runs normally with `SKATE_MOD` off | Every call site and emitted hook is `#ifdef SKATE_MOD`; the emitted code was compiled both ways. Build with `-DMELEE_SKATE_MOD=OFF` to confirm on Windows. |
+| D-pad left mounts from standing, dash, run, wavedash | Implemented; state list unit-tested. Needs in-game check. |
+| Dash speed kept; standing stays still | Unit-tested (momentum rule). |
+| Speed never above entry | Unit-tested, including dash/run/dash-attack trying to add speed. |
+| Back brakes at normal deceleration | Unit-tested. |
+| Aerials unchanged | Nothing touches attack data, hitboxes or frame data; only friction, `gr_vel` and landing lag on a miss. Compare with the mod off. |
+| Clean L-cancel rolls, miss stumbles | Implemented at the game's own L-cancel test; needs in-game check. |
+| Hit / ledge removes the board | Implemented (action-state groups + percent increase). |
+| Shield normal while mounted | Shield states keep the board; nothing about shielding is changed. |
+| Board visible, under feet, trick on every aerial | Implemented; projection unit-tested with a synthetic camera. Needs in-game check (see §6). |
+| Falco fair varial in his spin direction | Hand row, direction learned from his hip bone on the first fair. |
+| Hot-reload | F5, implemented. |
+| Resets on death, respawn, new match | Implemented (fighter pointer / kind / death states). |
+| No frame drops with two players | Per frame: a few dozen guest reads per fighter; one guest call per aerial; the board is ~20 ImGui quads. No allocation in the hooks; files only on F5/F8. |
+
+## 6. Things I could not verify in this environment
 
 This branch was written without a Windows toolchain, a GPU, or a Melee ISO. The pure logic
-(`skate_core`) is unit-tested (`port/tests/skate_core_test.cpp`, builds and runs on any compiler).
+(tunables, rules, tables, tricks, sampler, projection) is unit-tested (`port/tests/skate_core_test.cpp`,
+target `port_skate_core_test`, 102 checks, passing with GCC 13 and Clang). The emitted hook code was
+generated with the real `emit.py` and compiled with and without `SKATE_MOD`.
 The guest bindings were syntax-checked but never run. Expect to tune:
 
 - The sign/axes of the camera projection (board may appear mirrored or offset if a convention is
   off — `board_debug` in the F4 overlay shows the projected ground point to check against).
 - SFX ids in `skate/skate_tunables.json` are placeholders from ids the decomp shows in use.
 - Motion-id ranges for dismount-on-hit, if a character-specific state slips through.
+- The mount lag freezes the pad the game reads; if a held input feels wrong around a mount, that is
+  where to look (`freeze_pad` in `skate.cpp`).
+- Stick input still plays walk/dash animations in place when the board is stopped (the velocity is
+  held, the action state is not). A real "on the board" idle state would need new action states.
+- Ice Climbers: only Popo gets a board (Nana is a sub-fighter, not a player slot).

@@ -46,6 +46,14 @@ add_executable(port_load_test "${PORT_LOAD_TEST}")
 target_include_directories(port_load_test PRIVATE runtime/ppc)
 target_compile_features(port_load_test PRIVATE cxx_std_17)
 add_test(NAME port_signed_halfword_loads COMMAND port_load_test)
+# Skateboard mod: the pure logic (tunables, momentum rules, trick primitives and timing, the bone
+# sampler, both JSON tables, the camera projection). No game, no renderer.
+add_executable(port_skate_core_test tests/skate_core_test.cpp runtime/host/skate_tunables.cpp
+  runtime/host/skate_rules.cpp runtime/host/skate_data.cpp runtime/host/skate_board.cpp)
+target_include_directories(port_skate_core_test PRIVATE runtime/host third_party)
+target_compile_features(port_skate_core_test PRIVATE cxx_std_17)
+target_compile_definitions(port_skate_core_test PRIVATE NOMINMAX _CRT_SECURE_NO_WARNINGS)
+add_test(NAME port_skate_core COMMAND port_skate_core_test)
 
 # The instruction set the translated game and the runtime are built for. AVX2 is the default and
 # what every release so far has used; it needs Intel Haswell (2013) or AMD Ryzen. "AVX" reaches
