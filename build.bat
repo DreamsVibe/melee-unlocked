@@ -26,6 +26,14 @@ for %%I in ("%ISO%") do if /i "%%~xI"==".ciso" (
   set ISO=%~dp0melee.iso
 )
 
+rem The native animation library is generated from three files of the Melee decompilation
+rem (fobj.c, fobj.h, spline.c in doldecomp/melee). They are not in this repository: fetch only that folder.
+if not exist melee\src\sysdolphin\baselib\fobj.c (
+  echo Fetching the decomp's animation sources ^(doldecomp/melee, one folder^)...
+  git clone --depth 1 --filter=blob:none --sparse https://github.com/doldecomp/melee melee || goto :decomp_fail
+  git -C melee sparse-checkout set src/sysdolphin/baselib || goto :decomp_fail
+)
+
 echo.
 echo [1/4] Extracting main.dol from the ISO
 python tools\extract_dol.py "%ISO%" build\main.dol || goto :fail
@@ -54,5 +62,11 @@ exit /b 1
 
 :ciso_fail
 echo Could not convert the .ciso. In Dolphin: right-click the game, Convert File, format ISO, then drop that .iso here.
+pause
+exit /b 1
+
+:decomp_fail
+echo Could not fetch doldecomp/melee. Check that Git is installed and you are online, delete the
+echo "melee" folder in this directory if a half-finished one is there, then run this file again.
 pause
 exit /b 1
