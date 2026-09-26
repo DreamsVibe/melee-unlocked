@@ -13,6 +13,7 @@
 #include <string>
 
 #include "host.h"
+#include "skate_board.h"
 #include "skate_tunables.h"
 
 namespace skate {
@@ -43,6 +44,36 @@ void begin_frame();
 // Same place, with the freshly polled pads: D-pad left presses, and the mount lag (the pad frozen
 // for mount_frames frames after a mount or dismount). Local pads only; the mod is never online.
 void apply_pads(host::PadState pads[4]);
+
+// ---- what the renderer draws and the debug overlay shows. Built on the simulation thread at the
+// start of each frame from the state the previous frame left (so the camera and the fighters match
+// the picture being drawn), copied out under a lock by the render thread.
+struct BoardView {
+  bool present = false;       // a fighter is in this slot
+  bool on_board = false;      // and has a board to draw
+  int port = -1;              // controller port (0..3), -1 for a CPU or none
+  int kind = -1;
+  Pose pose;                  // where the board is
+  bool grounded = false;
+  float velocity = 0.0f;      // board (grounded) or horizontal (air) velocity
+  const char* state = "";     // skate state: rolling, braking, trick, stumble...
+  const char* landing = "";   // last landing: clean / stumble / -
+  const char* trick = "";     // trick being shown, if any
+  const char* phase = "";     // pop / flip / catch while a trick plays
+  float phase_t = 0.0f;       // 0..1 through the aerial
+  int motion = -1;
+  Vec3 ground{};              // the fighter's ground point, for the debug marker
+};
+struct Snapshot {
+  uint64_t frame = 0;
+  bool active = false;
+  Camera camera;
+  BoardView boards[6];
+  Tunables tunables;
+  size_t framedata_rows = 0, trick_rows = 0;
+};
+// Render thread: a copy of the latest snapshot.
+Snapshot snapshot();
 
 }  // namespace skate
 #endif  // SKATE_MOD

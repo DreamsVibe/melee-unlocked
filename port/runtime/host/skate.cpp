@@ -8,6 +8,7 @@
 #include <cstring>
 #include <cstdio>
 #include <fstream>
+#include <mutex>
 #include <sstream>
 
 #include "ppc.h"
@@ -42,6 +43,15 @@ constexpr uint32_t kFighterSize = 0x2400;
 constexpr uint32_t kFtAnimFrame = 0x894;           // float cur_anim_frame
 constexpr uint32_t kFtHitboxes = 0x914, kHitboxStride = 0x138, kHitboxCount = 4;   // HitCapsule x914[4], +0 state
 constexpr uint32_t kFnAnimEndFrame = 0x8006F484;  // float ftAnim_8006F484(gobj): current animation's end frame
+constexpr uint32_t kFtFloorNormal = 0x844;         // coll_data.floor.normal (x, y)
+constexpr uint32_t kFtParts = 0x5E8;               // FighterBone* parts, 0x10 each, +0 HSD_JObj*
+constexpr uint32_t kFtPartsTable = 0x804D6544;     // FighterPartsTable** ftPartsTable, by kind
+constexpr uint32_t kPartsToJoint = 0x4;            // FighterPartsTable::part_to_joint (u8*)
+constexpr int kPartHipN = 4, kPartLFootJ = 10, kPartRFootJ = 15;
+constexpr uint32_t kJObjMtx = 0x44;                // HSD_JObj::mtx, 3x4 world matrix
+constexpr uint32_t kGameCamera = 0x80452C68;       // Camera game_camera; +0 its GObj
+constexpr uint32_t kGObjHsdObj = 0x28;             // HSD_GObj::hsd_obj -> HSD_CObj
+constexpr uint32_t kCObjNear = 0x38, kCObjFov = 0x40, kCObjAspect = 0x44, kCObjView = 0x54;
 constexpr uint32_t kPFtCommonData = 0x804D6554;   // ftCommonData* p_ftCommonData
 constexpr uint32_t kFcLcWindow = 0xE4;            // int: frames an L/R/Z press counts for (7)
 
@@ -107,6 +117,9 @@ struct Player {
   float last_write = 0.0f;      // what it wrote, for a second GroundMove in the same frame
 };
 Player g_players[kSlots];
+std::mutex g_snapshot_lock;
+Snapshot g_snapshot;             // guarded by g_snapshot_lock
+uint64_t g_frame = 0;
 FrameDataTable g_framedata;
 bool g_framedata_dirty = false;
 
@@ -203,6 +216,7 @@ bool write_file(const std::string& path, const std::string& text) {
 
 void load_framedata();
 void save_framedata();
+void publish();
 
 void load_tunables() {
   Tunables t;   // compiled defaults, then whatever the file says
@@ -263,6 +277,7 @@ void begin_frame() {
   }
   g_hooks_live = live;
   if (live) track_slots();
+  publish();
 }
 
 void apply_pads(host::PadState pads[4]) {
@@ -441,6 +456,90 @@ void landing_check(ppc::Context& c, Player& p, uint32_t fp) {
   }
 }
 }  // namespace
+
+namespace {
+// ---- spec step 8: where the board is, read after the frame is simulated.
+// A bone's world position (its matrix's translation), or false when it cannot be read.
+bool bone_position(uint32_t fp, int kind, int part, Vec3& out) {
+  const uint32_t tables = rd32(kFtPartsTable);
+  if (!mapped(tables, (uint32_t)(kKinds * 4))) return false;
+  const uint32_t table = rd32(tables + (uint32_t)kind * 4);
+  if (!mapped(table, 12)) return false;
+  const uint32_t part_to_joint = rd32(table + kPartsToJoint);
+  if (!mapped(part_to_joint, (uint32_t)part + 1)) return false;
+  const uint32_t joint = rd8(part_to_joint + (uint32_t)part);
+  const uint32_t parts = rd32(fp + kFtParts);
+  if (!mapped(parts, (joint + 1) * 0x10)) return false;
+  const uint32_t jobj = rd32(parts + joint * 0x10);
+  if (!mapped(jobj, kJObjMtx + 0x30)) return false;
+  out = {rdf(jobj + kJObjMtx + 0x0C), rdf(jobj + kJObjMtx + 0x1C), rdf(jobj + kJObjMtx + 0x2C)};
+  return std::isfinite(out.x) && std::isfinite(out.y) && std::isfinite(out.z);
+}
+
+bool read_camera(Camera& cam) {
+  cam.valid = false;
+  const uint32_t gobj = rd32(kGameCamera);
+  if (!mapped(gobj, kGObjHsdObj + 4)) return false;
+  const uint32_t cobj = rd32(gobj + kGObjHsdObj);
+  if (!mapped(cobj, kCObjView + 0x30)) return false;
+  for (int r = 0; r < 3; ++r)
+    for (int k = 0; k < 4; ++k) cam.view[r][k] = rdf(cobj + kCObjView + (uint32_t)(r * 16 + k * 4));
+  cam.fov_deg = rdf(cobj + kCObjFov);
+  cam.aspect = rdf(cobj + kCObjAspect);
+  cam.near_z = rdf(cobj + kCObjNear);
+  cam.valid = cam.fov_deg > 1.0f && cam.fov_deg < 179.0f && cam.aspect > 0.1f && cam.aspect < 10.0f;
+  return cam.valid;
+}
+
+const char* landing_name(Landed l) { return l == Landed::Clean ? "clean" : l == Landed::Stumble ? "stumble" : "-"; }
+
+void board_view(Player& p, BoardView& v) {
+  const Tunables& t = g_tunables;
+  v = BoardView{};
+  if (!p.fp) return;
+  const uint32_t fp = p.fp;
+  v.present = true;
+  v.on_board = p.on_board;
+  v.port = p.port;
+  v.kind = p.kind;
+  v.motion = (int)rd32(fp + kFtMotion);
+  v.grounded = rd32(fp + kFtGroundAir) == 0;
+  v.landing = landing_name(p.last_landing);
+  const float facing = rdf(fp + kFtFacing);
+  const Vec3 pos{rdf(fp + kFtPos), rdf(fp + kFtPos + 4), rdf(fp + kFtPos + 8)};
+  v.ground = pos;
+  v.velocity = v.grounded ? rdf(fp + kFtGrVel) : rdf(fp + kFtSelfVel);
+  if (!p.on_board) { v.state = "off"; return; }
+  v.state = p.stumbling ? "stumble" : v.grounded ? mode_name(p.mode) : "air";
+  if (v.grounded) {
+    v.pose = rest_pose(pos, facing, rdf(fp + kFtFloorNormal), rdf(fp + kFtFloorNormal + 4), t);
+  } else {
+    Vec3 l, r, feet = pos;
+    if (bone_position(fp, p.kind, kPartLFootJ, l) && bone_position(fp, p.kind, kPartRFootJ, r)) feet = (l + r) * 0.5f;
+    v.pose = air_pose(feet, facing, t);
+  }
+}
+
+// Builds the snapshot for the renderer from the state the last frame left behind.
+void publish() {
+  Snapshot s;
+  s.frame = ++g_frame;
+  s.active = g_hooks_live;
+  s.tunables = g_tunables;
+  s.framedata_rows = g_framedata.size();
+  if (g_hooks_live) {
+    read_camera(s.camera);
+    for (int i = 0; i < kSlots; ++i) board_view(g_players[i], s.boards[i]);
+  }
+  std::lock_guard<std::mutex> lock(g_snapshot_lock);
+  g_snapshot = s;
+}
+}  // namespace
+
+Snapshot snapshot() {
+  std::lock_guard<std::mutex> lock(g_snapshot_lock);
+  return g_snapshot;
+}
 
 void hook_enter(ppc::Context& c, uint8_t* m, Site site) {
   const uint32_t gobj = c.r[3];

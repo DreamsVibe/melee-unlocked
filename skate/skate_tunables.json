@@ -12,7 +12,7 @@
   "board_width": 1.9,
   "board_thickness": 0.3,
   "wheel_size": 0.55,
-  "foot_height": 0.1,
+  "foot_height": 0.0,
   "pop_height": 1.8,
   "catch_snap_frames": 2,
   "default_active_start": 0.2,

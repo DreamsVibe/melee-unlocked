@@ -18,6 +18,7 @@
 #include "lcancel.h"
 #ifdef SKATE_MOD
 #include "skate.h"
+#include "skate_overlay.h"
 #endif
 #include "user_gecko.h"
 #include "gecko_data.h"
@@ -3214,6 +3215,11 @@ bool settings_frame(SettingsState& state, D3D12Options& options) {
   // violation on the next present. 0.3.2 shipped exactly that as an early return here and crashed
   // the launcher's settings window. The warning was already in this file, twenty lines up.
   if (!state.fill_window) {
+#ifdef SKATE_MOD
+    // Skateboards and the skate debug overlay (F4). On the background list: under every window.
+    skate_ui::frame(ImGui::GetIO().DisplaySize.x, ImGui::GetIO().DisplaySize.y,
+                    presented_aspect(options, (int)ImGui::GetIO().DisplaySize.x, (int)ImGui::GetIO().DisplaySize.y));
+#endif
     draw_lcancel_overlays();
     draw_discord_invite_overlay();
     // The plain readouts: frame rate and, while online, the ping. Small, top left, no window

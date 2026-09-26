@@ -27,7 +27,7 @@ struct Tunables {
   float board_width = 1.9f;
   float board_thickness = 0.3f;
   float wheel_size = 0.55f;
-  float foot_height = 0.1f;            // gap between the ground point and the deck's underside
+  float foot_height = 0.0f;            // extra lift: under the wheels on the ground, under the feet in the air
   float pop_height = 1.8f;             // how high a trick lifts the board off the feet
   int catch_snap_frames = 2;           // landing mid-trick snaps the board to the catch pose this fast
   // Where the flip happens in an aerial whose frame data has not been observed yet (fractions of the move).
