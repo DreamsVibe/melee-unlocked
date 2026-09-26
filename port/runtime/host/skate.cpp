@@ -17,6 +17,11 @@
 #include "skate_hook.h"
 #include "skate_rules.h"
 #include "slippi_online.h"
+#include "window.h"
+
+#ifdef _WIN32
+#include <windows.h>
+#endif
 
 namespace skate {
 
@@ -295,6 +300,54 @@ std::atomic<bool> g_save_requested{false};
 }  // namespace
 
 void request_save() { g_save_requested.store(true); }
+
+// ---------------- frame advance
+namespace {
+std::atomic<bool> g_frame_advance{false}, g_step{false};
+
+// F6 / F7 rising edges, read straight from the keyboard: while the game is held the render thread
+// may never get to ImGui's key handling (without the threaded renderer it is this same thread).
+void poll_frame_keys() {
+#ifdef _WIN32
+  static bool f6 = false, f7 = false;
+  DWORD pid = 0;
+  const HWND fg = GetForegroundWindow();
+  if (fg) GetWindowThreadProcessId(fg, &pid);
+  const bool focused = pid == GetCurrentProcessId();
+  const bool f6_now = focused && (GetAsyncKeyState(VK_F6) & 0x8000) != 0;
+  const bool f7_now = focused && (GetAsyncKeyState(VK_F7) & 0x8000) != 0;
+  if (f6_now && !f6) { const bool on = !g_frame_advance.load(); g_frame_advance.store(on); host::log("skate: frame advance %s", on ? "on (F7 steps)" : "off"); }
+  if (f7_now && !f7 && g_frame_advance.load()) g_step.store(true);
+  f6 = f6_now;
+  f7 = f7_now;
+#endif
+}
+}  // namespace
+
+void set_frame_advance(bool on) { g_frame_advance.store(on); }
+bool frame_advance() { return g_frame_advance.load(); }
+void request_step() { g_step.store(true); }
+
+void frame_gate() {
+  if (!g_hooks_live) { g_frame_advance.store(false); return; }
+  // Once per frame: PADRead can run twice in one retrace, and one F7 is one frame.
+  static uint32_t last_retrace = 0xFFFFFFFFu;
+  const uint32_t retrace = host::retrace_count();
+  if (retrace == last_retrace) return;
+  last_retrace = retrace;
+  for (;;) {
+    poll_frame_keys();
+    if (!g_frame_advance.load()) return;
+    if (g_step.exchange(false)) return;
+    if (host::exit_requested()) return;
+    // Held: keep the window alive (a no-op when another thread owns it) and wait for a key.
+    host::window_pump();
+#ifdef _WIN32
+    Sleep(4);
+#endif
+    if (!active()) { g_frame_advance.store(false); return; }
+  }
+}
 
 void set_enabled(bool on) {
   if (g_enabled.exchange(on) != on) host::log("skate: mod %s", on ? "on" : "off");
@@ -637,6 +690,7 @@ void publish() {
   s.tunables = g_tunables;
   s.framedata_rows = g_framedata.size();
   s.trick_rows = g_tricks.size();
+  s.frame_advance = g_frame_advance.load();
   if (g_hooks_live) {
     read_camera(s.camera);
     for (int i = 0; i < kSlots; ++i) board_view(g_players[i], s.boards[i]);

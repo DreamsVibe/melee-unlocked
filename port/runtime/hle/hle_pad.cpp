@@ -48,6 +48,10 @@ HLE(PADRead) {
   host::pump_completions();
   static int reported = 0;
   if (host::options.trace_calls && reported++ < 10) host::log("[pad] PADRead(%08X)", ARG0);
+#ifdef SKATE_MOD
+  // Skateboard mod frame advance (F6/F7): holds the game here, before the pads are read.
+  skate::frame_gate();
+#endif
   host::PadState pads[4];
   host::input_poll(pads);
   // Automatic L-cancel, if the player turned it on: it presses the analog trigger here, one step

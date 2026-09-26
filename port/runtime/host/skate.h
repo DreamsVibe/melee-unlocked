@@ -45,6 +45,15 @@ void begin_frame();
 // for mount_frames frames after a mount or dismount). Local pads only; the mod is never online.
 void apply_pads(host::PadState pads[4]);
 
+// ---- frame advance (spec: debug tools). F6 holds the game and lets it go; F7 steps one frame while
+// it is held. Polled on the simulation thread (the render thread may be the one waiting), and only
+// while this window has focus. Nothing else about the game changes; audio simply stops while held.
+// Called from HLE(PADRead) before the pads are polled: blocks while the game is held.
+void frame_gate();
+void set_frame_advance(bool on);
+bool frame_advance();
+void request_step();
+
 // ---- what the renderer draws and the debug overlay shows. Built on the simulation thread at the
 // start of each frame from the state the previous frame left (so the camera and the fighters match
 // the picture being drawn), copied out under a lock by the render thread.
@@ -71,6 +80,7 @@ struct Snapshot {
   BoardView boards[6];
   Tunables tunables;
   size_t framedata_rows = 0, trick_rows = 0;
+  bool frame_advance = false;
 };
 // Render thread: a copy of the latest snapshot.
 Snapshot snapshot();
