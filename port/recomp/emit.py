@@ -95,6 +95,15 @@ class Emitter:
                     "SetupSharedVtxModelMtx": "OtherMatrix", "SetupEnvelopeModelMtx": "EnvelopeMatrix"}.get(func.name)
         if observer:
             out.append("  gx::RenderObserver render_observer(c, gx::Observe::%s, m);" % observer)
+        # Skateboard mod (SKATE_NOTES.md): host hooks at the entry of three fighter functions. Behind
+        # SKATE_MOD so the same generated code builds vanilla with the mod's CMake option off.
+        skate = {"Fighter_procUpdate": "ProcUpdate",
+                 "ftCommon_SetSelfMovementFromGroundedMovement": "GroundMove",
+                 "ftCo_LandingAir_EnterWithMsidLag": "LandingAir"}.get(func.name)
+        if skate:
+            out.append("#ifdef SKATE_MOD")
+            out.append("  skate::Hook skate_hook(c, m, skate::Site::%s);" % skate)
+            out.append("#endif")
         if info.has_blrl:
             # blrl jumps to LR and re-links: when LR is still this invocation's return address the
             # instruction is a return that leaves a new LR behind (Slippi's helper-table trick).

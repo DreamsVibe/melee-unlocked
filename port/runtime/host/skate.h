@@ -34,5 +34,9 @@ void request_reload();
 // reload; the overlay copies what it shows.
 const Tunables& tunables();
 
+// Simulation thread, once per frame from HLE(PADRead) before the game runs the frame: picks up a
+// requested reload, switches the hooks on or off, and notices new, finished or respawned fighters.
+void begin_frame();
+
 }  // namespace skate
 #endif  // SKATE_MOD

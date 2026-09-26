@@ -268,6 +268,8 @@ def main():
                 "#include \"functions.h\"\n#include \"gecko_data.h\"\n#include <intrin.h>\nnamespace guest {\n" + "".join(chunk) + "}\n")
         if "gx::RenderObserver" in body:
             body = '#include "render_observer.h"\n' + body
+        if "skate::Hook" in body:
+            body = '#ifdef SKATE_MOD\n#include "skate_hook.h"\n#endif\n' + body
         changed += write_if_changed(path, body)
         written.append(path)
         tu_index += 1
