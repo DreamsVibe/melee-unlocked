@@ -1,0 +1,29 @@
+{
+  "_comment": "Skateboard mod tunables (SKATE_NOTES.md). Any key can be left out to use the compiled default. F5 in game reloads this file.",
+  "mount_frames": 3,
+  "skate_friction": 0.0,
+  "stumble_extra_frames": 8,
+  "slide_ground_attacks": true,
+  "airdodge_land_friction": "vanilla",
+  "skate_push": false,
+  "brake_stick": 0.3,
+
+  "board_length": 7.0,
+  "board_width": 1.9,
+  "board_thickness": 0.3,
+  "wheel_size": 0.55,
+  "foot_height": 0.1,
+  "pop_height": 1.8,
+  "catch_snap_frames": 2,
+  "default_active_start": 0.2,
+  "default_active_end": 0.55,
+
+  "_sfx_comment": "Guest sound ids for ft_PlaySFX; 0 = off. Placeholders: try ids and hot-reload with F5.",
+  "sfx_pop": 110,
+  "sfx_catch": 224,
+  "sfx_roll": 0,
+  "sfx_scrape": 115,
+  "sfx_volume": 110,
+  "roll_interval_frames": 14,
+  "roll_min_speed": 0.35
+}

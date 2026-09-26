@@ -55,6 +55,10 @@ add_test(NAME port_signed_halfword_loads COMMAND port_load_test)
 # subdirectory is added, so native_animation (built there) also gets the right /arch flag.
 message(STATUS "melee: CPU baseline ${MELEE_CPU_BASELINE}")
 
+# Skateboard mod (SKATE_NOTES.md): host hooks the recompiler emits into a few fighter functions,
+# plus the runtime that drives them. OFF builds vanilla: the emitted hooks are #ifdef SKATE_MOD and
+# every call site in the runtime is too. Only the main game gets it, never the replay playback build.
+option(MELEE_SKATE_MOD "Build the skateboard mod" ON)
 set(PORT_GEN "${CMAKE_CURRENT_SOURCE_DIR}/generated")
 if(NOT EXISTS "${PORT_GEN}/guest_sources.cmake")
   message(FATAL_ERROR "port: generated code missing; run python port/recomp/recomp.py")
@@ -76,6 +80,9 @@ target_include_directories(guest PRIVATE runtime/hle)   # gecko_data.h: run-time
 target_compile_features(guest PUBLIC cxx_std_17)
 target_compile_options(guest PRIVATE /bigobj /MP /EHsc ${MELEE_ARCH_FLAG} /fp:precise /wd4102 /wd4101 /wd4189 /W1)
 target_compile_definitions(guest PRIVATE NOMINMAX _CRT_SECURE_NO_WARNINGS)
+if(MELEE_SKATE_MOD)
+  target_compile_definitions(guest PRIVATE SKATE_MOD)
+endif()
 endif()
 
 # Host runtime: CPU helpers, memory, HLE, host services.
@@ -139,6 +146,9 @@ target_compile_features(runtime PUBLIC cxx_std_17)
 target_compile_options(runtime PRIVATE /EHsc ${MELEE_ARCH_FLAG} /fp:precise /W3)
 target_compile_definitions(runtime PRIVATE NOMINMAX _CRT_SECURE_NO_WARNINGS _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING)
 target_link_libraries(runtime PUBLIC native_animation port_enet port_libusb bcrypt d3d12 d3d11 dxgi d3dcompiler xinput9_1_0 winmm user32 gdi32 setupapi winusb hid)
+if(MELEE_SKATE_MOD)
+  target_compile_definitions(runtime PUBLIC SKATE_MOD)   # PUBLIC: app/main.cpp needs it too
+endif()
 
 # WIN32: no console window when the game is double-clicked or started from the launcher. Command-line
 # use still works, because main() reattaches to a parent console when there is one (see app/main.cpp).

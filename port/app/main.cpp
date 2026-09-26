@@ -22,6 +22,9 @@
 #include "threaded_backend.h"
 #include "window.h"
 #include "lcancel.h"
+#ifdef SKATE_MOD
+#include "skate.h"
+#endif
 #include "user_gecko.h"
 #include "updater.h"
 #include "discord_presence.h"
@@ -508,11 +511,20 @@ static int melee_main(int argc, char** argv) {
     else if (a == "--lcancel-indicator") lcancel::set_indicator(true);
     else if (a == "--lcancel-log") lcancel::set_log_path(next());
     else if (a == "--profile-render") { g_profile = true; g_profiler.render_thread = true; }
+#ifdef SKATE_MOD
+    // Skateboard mod (SKATE_NOTES.md). The saved setting decides unless one of these says otherwise.
+    else if (a == "--skate") skate::set_enabled(true);
+    else if (a == "--no-skate") skate::set_enabled(false);
+    else if (a == "--skate-dir") skate::set_data_dir(next());
+#endif
     // Recognised in the pre-scan above; listed here so it is not rejected as unknown.
     else if (a == "--settings-window") {}
     else { usage(); return 2; }
   }
   gecko::option_widescreen = gfx.widescreen;   // before the game loads the code table
+#ifdef SKATE_MOD
+  skate::load_files();   // skate/skate_tunables.json over the compiled defaults
+#endif
   if (fps_requested && gfx.subframe == gx::SubFrameMode::Off) {
     std::fprintf(stderr, "--fps requires explicit experimental --frame-mode interpolate, extrapolate or authored\n");
     return 2;

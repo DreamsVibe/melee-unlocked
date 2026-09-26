@@ -16,6 +16,9 @@
 #include "host.h"
 #include "input_bindings.h"
 #include "lcancel.h"
+#ifdef SKATE_MOD
+#include "skate.h"
+#endif
 #include "user_gecko.h"
 #include "gecko_data.h"
 #include "slippi_online.h"
@@ -1413,6 +1416,9 @@ void load_pc_settings(D3D12Options& options, int& volume) {
       else if (key == "inputoverlaystick") options.input_overlay_stick = std::clamp(std::atoi(value.c_str()), 1, 10);
       else if (key == "lcancelindicator") lcancel::set_indicator(value == "1");
       else if (key == "autolcancel") lcancel::set_automatic(value == "1");
+#ifdef SKATE_MOD
+      else if (key == "skatemod") skate::set_enabled(value != "0");
+#endif
       else if (key == "palstockicons") gecko::option_pal_stock_icons = value == "1";
       else if (key == "noscreenshake") gecko::option_no_screen_shake = value == "1";
       else if (key == "geckocode") gecko_on.push_back(value);
@@ -2354,6 +2360,22 @@ bool settings_frame(SettingsState& state, D3D12Options& options) {
       }
     }
 
+#ifdef SKATE_MOD
+    // ---- Skateboard mod (SKATE_NOTES.md). It changes the simulation, so it never runs online.
+    ImGui::TextUnformatted("Skateboard");
+    {
+      bool skating = skate::enabled();
+      if (ImGui::Checkbox("Skateboard mod (D-pad left)", &skating)) { skate::set_enabled(skating); changed = true; }
+      if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("D-pad left pulls out a skateboard for any character. It carries the speed you\n"
+                          "already have, aerials become board tricks, and a missed L-cancel stumbles.\n"
+                          "Changes how the game plays, so it is always off online.\n"
+                          "F4: skate debug overlay. F5: reload skate/*.json. F6/F7: frame advance.");
+      if (skating && !skate::active())
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.25f, 1.0f), "Off right now: an online session is open.");
+    }
+#endif
+
     // ---- HUD ----
     // A port code compiled into the game (recomp/gecko.py PORT_CODES): the stock row drawn at PAL's
     // size and height. Display only, read when the HUD is built, so it applies from the next match.
@@ -3011,6 +3033,9 @@ bool settings_frame(SettingsState& state, D3D12Options& options) {
            << "\nlowspec_prev_subframe " << (options.low_spec_previous.subframe == SubFrameMode::Off ? 0 : options.low_spec_previous.subframe == SubFrameMode::AuthoredInterpolate ? 2 : 1)
            << "\nlcancelindicator " << (lcancel::indicator_enabled() ? 1 : 0)
            << "\nautolcancel " << (lcancel::automatic_enabled() ? 1 : 0)
+#ifdef SKATE_MOD
+           << "\nskatemod " << (skate::enabled() ? 1 : 0)
+#endif
            << "\npalstockicons " << (gecko::option_pal_stock_icons ? 1 : 0)
            << "\nnoscreenshake " << (gecko::option_no_screen_shake ? 1 : 0)
            << "\nswpro_gc_picture " << (g_swpro_gc_picture ? 1 : 0)
